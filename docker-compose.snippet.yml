@@ -1,0 +1,20 @@
+# Add this service block into your existing docker-compose.yml on the VPS,
+# alongside whisper-ktor / piper-server / akylai-server.
+#
+# The service-account JSON key itself is NOT baked into the image (see
+# .dockerignore) — it's bind-mounted read-only at runtime instead. Place it
+# at google-cloud-proxy/secrets/nurai-gcp-key.json on the VPS (scp'd there
+# manually, never via git — see README.md "Деплой на VPS").
+services:
+  google-cloud-proxy:
+    build: ./google-cloud-proxy
+    restart: unless-stopped
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/gcloud-key.json
+      PROXY_AUTH_TOKEN: ${PROXY_AUTH_TOKEN}
+      PORT: 8003
+    volumes:
+      - ./google-cloud-proxy/secrets/nurai-gcp-key.json:/run/secrets/gcloud-key.json:ro
+    ports:
+      - "8003:8003"
+    mem_limit: 512m
