@@ -26,3 +26,6 @@ data class SynthesizeResult(
     val contentType: String,
     val processingTimeMs: Long
 )
+
+/** Thrown by a [TextToSpeechProvider] implementation when a languageCode has no voice available at all. */
+class UnsupportedLanguageException(val languageCode: String, message: String) : Exception(message)

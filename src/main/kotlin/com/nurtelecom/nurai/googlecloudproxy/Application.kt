@@ -2,6 +2,7 @@ package com.nurtelecom.nurai.googlecloudproxy
 
 import com.nurtelecom.nurai.googlecloudproxy.config.AppConfig
 import com.nurtelecom.nurai.googlecloudproxy.di.appModule
+import com.nurtelecom.nurai.googlecloudproxy.domain.UnsupportedLanguageException
 import com.nurtelecom.nurai.googlecloudproxy.presentation.routes.sttRoutes
 import com.nurtelecom.nurai.googlecloudproxy.presentation.routes.ttsRoutes
 import io.ktor.serialization.kotlinx.json.json
@@ -45,6 +46,9 @@ fun Application.module(config: AppConfig = AppConfig.fromEnv()) {
     }
 
     install(StatusPages) {
+        exception<UnsupportedLanguageException> { call, cause ->
+            call.respond(HttpStatusCode.BadRequest, mapOf("error" to cause.message))
+        }
         exception<Throwable> { call, cause ->
             call.application.environment.log.error("Unhandled error", cause)
             call.respond(HttpStatusCode.InternalServerError, mapOf("error" to (cause.message ?: "unknown error")))
