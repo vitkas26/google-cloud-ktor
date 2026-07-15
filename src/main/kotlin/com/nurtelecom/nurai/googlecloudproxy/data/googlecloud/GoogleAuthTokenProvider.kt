@@ -1,6 +1,10 @@
 package com.nurtelecom.nurai.googlecloudproxy.data.googlecloud
 
 import com.google.auth.oauth2.GoogleCredentials
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import java.io.File
 import java.io.FileInputStream
 
 /**
@@ -14,6 +18,13 @@ class GoogleAuthTokenProvider(credentialsPath: String) {
     private val credentials: GoogleCredentials = FileInputStream(credentialsPath).use { stream ->
         GoogleCredentials.fromStream(stream).createScoped(SCOPES)
     }
+
+    // Parsed straight from the JSON rather than cast to ServiceAccountCredentials —
+    // GoogleCredentials (the type we hold) doesn't expose getProjectId() itself,
+    // only its ServiceAccountCredentials subtype does.
+    val projectId: String = Json.parseToJsonElement(File(credentialsPath).readText())
+        .jsonObject["project_id"]?.jsonPrimitive?.content
+        ?: error("Service account JSON at $credentialsPath is missing project_id")
 
     fun getAuthorizationHeader(): String {
         val metadata = credentials.getRequestMetadata()
