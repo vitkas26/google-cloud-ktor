@@ -8,16 +8,17 @@ import com.nurtelecom.nurai.googlecloudproxy.domain.RecognizeRequest
 import com.nurtelecom.nurai.googlecloudproxy.domain.RecognizeResult
 import com.nurtelecom.nurai.googlecloudproxy.domain.SpeechToTextProvider
 import io.ktor.client.HttpClient
-import io.ktor.client.call.body
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import java.util.Base64
 import kotlin.time.measureTimedValue
 
@@ -37,23 +38,38 @@ class GoogleCloudSttProvider(
 
     override suspend fun recognize(request: RecognizeRequest): RecognizeResult = withContext(ioDispatcher) {
         val timed = measureTimedValue {
-            httpClient.post("https://speech.googleapis.com/v1/speech:recognize") {
+            val audioContent = Base64.getEncoder().encodeToString(request.audioBytes)
+            val requestDto = GoogleSttRequestDto(
+                config = GoogleSttConfigDto(
+                    encoding = request.encoding,
+                    sampleRateHertz = request.sampleRateHertz,
+                    languageCode = request.languageCode,
+                    alternativeLanguageCodes = request.alternativeLanguageCodes
+                ),
+                audio = GoogleSttAudioDto(content = audioContent)
+            )
+
+            // TEMP DEBUG — remove once we know why results:[] comes back empty.
+            println("=== OUTGOING GOOGLE STT REQUEST ===")
+            println(
+                Json.encodeToString(
+                    GoogleSttRequestDto.serializer(),
+                    requestDto.copy(audio = GoogleSttAudioDto(content = audioContent.take(50) + "..."))
+                )
+            )
+
+            val response = httpClient.post("https://speech.googleapis.com/v1/speech:recognize") {
                 header(HttpHeaders.Authorization, authTokenProvider.getAuthorizationHeader())
                 contentType(ContentType.Application.Json)
-                setBody(
-                    GoogleSttRequestDto(
-                        config = GoogleSttConfigDto(
-                            encoding = request.encoding,
-                            sampleRateHertz = request.sampleRateHertz,
-                            languageCode = request.languageCode,
-                            alternativeLanguageCodes = request.alternativeLanguageCodes
-                        ),
-                        audio = GoogleSttAudioDto(
-                            content = Base64.getEncoder().encodeToString(request.audioBytes)
-                        )
-                    )
-                )
-            }.body<GoogleSttResponseDto>()
+                setBody(requestDto)
+            }
+
+            // TEMP DEBUG — remove once we know why results:[] comes back empty.
+            val rawBody = response.bodyAsText()
+            println("=== RAW GOOGLE STT RESPONSE (status=${response.status}) ===")
+            println(rawBody)
+
+            Json { ignoreUnknownKeys = true }.decodeFromString(GoogleSttResponseDto.serializer(), rawBody)
         }
 
         val bestResult = timed.value.results.firstOrNull()
