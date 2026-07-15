@@ -19,6 +19,7 @@ import io.ktor.http.contentType
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import java.util.Base64
 import kotlin.time.measureTimedValue
 
@@ -33,18 +34,30 @@ class GoogleCloudTtsProvider(
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : TextToSpeechProvider {
 
+    // Google rejects/ignores a voice object where "name" is present but null is still
+    // spelled out — omit unset fields instead of sending them as JSON null.
+    private val requestJson = Json { explicitNulls = false }
+
     override suspend fun synthesize(request: SynthesizeRequest): SynthesizeResult = withContext(ioDispatcher) {
         val timed = measureTimedValue {
+            // Explicit voiceName always wins; only fall back to ssmlGender-based
+            // auto-selection when the caller didn't ask for a specific voice.
+            val voice = if (request.voiceName != null) {
+                GoogleTtsVoiceDto(languageCode = request.languageCode, name = request.voiceName)
+            } else {
+                GoogleTtsVoiceDto(languageCode = request.languageCode, ssmlGender = request.ssmlGender)
+            }
+
+            val requestDto = GoogleTtsRequestDto(
+                input = GoogleTtsInputDto(request.text),
+                voice = voice,
+                audioConfig = GoogleTtsAudioConfigDto(request.audioEncoding)
+            )
+
             httpClient.post("https://texttospeech.googleapis.com/v1/text:synthesize") {
                 header(HttpHeaders.Authorization, authTokenProvider.getAuthorizationHeader())
                 contentType(ContentType.Application.Json)
-                setBody(
-                    GoogleTtsRequestDto(
-                        input = GoogleTtsInputDto(request.text),
-                        voice = GoogleTtsVoiceDto(request.languageCode, request.voiceName),
-                        audioConfig = GoogleTtsAudioConfigDto(request.audioEncoding)
-                    )
-                )
+                setBody(requestJson.encodeToString(GoogleTtsRequestDto.serializer(), requestDto))
             }.body<GoogleTtsResponseDto>()
         }
 

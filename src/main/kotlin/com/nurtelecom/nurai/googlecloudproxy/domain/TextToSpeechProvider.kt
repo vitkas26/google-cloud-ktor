@@ -15,7 +15,9 @@ interface TextToSpeechProvider {
 data class SynthesizeRequest(
     val text: String,
     val languageCode: String,
-    val voiceName: String,
+    /** Explicit voice override. When null, the provider auto-selects a voice using [ssmlGender]. */
+    val voiceName: String? = null,
+    val ssmlGender: String = "FEMALE",
     val audioEncoding: String = "OGG_OPUS"
 )
 

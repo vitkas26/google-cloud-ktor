@@ -38,10 +38,17 @@ config/                     — чтение переменных окружен
 ```bash
 curl http://localhost:8003/health
 
+# voiceName явно — конкретная модель голоса
 curl -X POST http://localhost:8003/tts \
   -H "Content-Type: application/json" \
   -d '{"text":"Merhaba, size nasıl yardımcı olabilirim?","languageCode":"tr-TR","voiceName":"tr-TR-Wavenet-D"}' \
   --output test.ogg
+
+# voiceName опущен — Google сам подбирает голос под language+gender (?gender=FEMALE|MALE|NEUTRAL, дефолт FEMALE)
+curl -X POST "http://localhost:8003/tts?gender=FEMALE" \
+  -H "Content-Type: application/json" \
+  -d '{"text":"Hallo, wie kann ich Ihnen helfen?","languageCode":"de-DE"}' \
+  --output test-de.ogg
 
 curl -X POST "http://localhost:8003/stt?lang=ru-RU&alt=ky-KG,tr-TR" \
   -H "Content-Type: application/octet-stream" \
@@ -50,6 +57,8 @@ curl -X POST "http://localhost:8003/stt?lang=ru-RU&alt=ky-KG,tr-TR" \
 
 Список голосов (`voiceName`) для нужного языка — `gcloud` или REST-эндпоинт
 `voices:list`, чтобы подобрать конкретное имя турецкого голоса под тест.
+Без `voiceName` Google сам выбирает голос по `languageCode` + `?gender=` —
+даёт консистентное звучание между языками без привязки к конкретной модели.
 
 ## Деплой на VPS
 

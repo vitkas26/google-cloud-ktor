@@ -13,7 +13,7 @@ data class RecognizeRequest(
     val languageCode: String,
     val alternativeLanguageCodes: List<String> = emptyList(),
     val sampleRateHertz: Int = 16000,
-    val encoding: String = "OGG_OPUS"
+    val encoding: String = "LINEAR16"
 )
 
 data class RecognizeResult(

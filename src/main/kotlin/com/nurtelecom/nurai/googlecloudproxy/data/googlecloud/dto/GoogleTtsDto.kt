@@ -15,7 +15,8 @@ data class GoogleTtsInputDto(val text: String)
 @Serializable
 data class GoogleTtsVoiceDto(
     val languageCode: String,
-    val name: String
+    val name: String? = null,
+    val ssmlGender: String? = null
 )
 
 @Serializable
